@@ -54,8 +54,7 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
 def show_products(call):
     category_name = call.data.split("_", 1)[1]
-
-    bot.answer_callback_query(call.id)  # ✅ Prevents stuck "loading"
+    bot.answer_callback_query(call.id)  # ✅ Fixes stuck "loading..."
 
     try:
         with open(config["database"]["path"]) as db_file:
@@ -63,16 +62,20 @@ def show_products(call):
     except FileNotFoundError:
         data = {"products": {}, "users": {}}
 
-    products = [
-        f'*{p["name"]}* - {p["price"]} BTC'
-        for p in data["products"].values()
-        if p["category"] == category_name
-    ]
+    product_list = []
+    for product in data["products"].values():
+        if product["category"].lower() == category_name.lower():
+            product_text = (
+                f"🛍️ *{product['name']}*\n"
+                f"💸 *Price:* {product['price']} BTC"
+            )
+            product_list.append(product_text)
 
-    if products:
-        product_list = "\n".join(products)
-        bot.send_message(call.message.chat.id, f"📦 *{category_name} Products:*\n\n{product_list}", parse_mode="Markdown")
+    if product_list:
+        response = f"*{category_name} Products:*\n\n" + "\n\n".join(product_list)
     else:
-        bot.send_message(call.message.chat.id, f"⚠️ No products available in *{category_name}*", parse_mode="Markdown")
+        response = f"⚠️ No products available in *{category_name}*"
+
+    bot.send_message(call.message.chat.id, response, parse_mode="Markdown")
 
 bot.polling()
