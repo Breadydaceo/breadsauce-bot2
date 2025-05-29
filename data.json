@@ -1,1 +1,30 @@
-{}
+{
+  "products": {
+    "1": {
+      "name": "Nike $100 Gift Card",
+      "category": "Gift Cards",
+      "price": "50"
+    },
+    "2": {
+      "name": "Fullz USA Premium",
+      "category": "Fullz",
+      "price": "35"
+    },
+    "3": {
+      "name": "Top 10 Verified BINs",
+      "category": "BIN Numbers",
+      "price": "20"
+    },
+    "4": {
+      "name": "CC - Platinum 2025",
+      "category": "CCs",
+      "price": "40"
+    },
+    "5": {
+      "name": "Starter Glass Kit",
+      "category": "Glass",
+      "price": "60"
+    }
+  },
+  "users": {}
+}
