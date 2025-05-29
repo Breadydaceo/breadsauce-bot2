@@ -1,0 +1,20 @@
+{
+  "telegram_bot_token": "8032004385:AAEyYPljNDvah5WxWNHurmYTq9WXSwBg8FY",
+  "nowpayments_api_key": "MC95DKQ-5YZ4BN3-KQXMZ1B-D70VVXV",
+  "categories": [
+    "Gift Cards",
+    "Fullz",
+    "BIN Numbers",
+    "CCs",
+    "Glass"
+  ],
+  "admin_ids": [
+    "7388528456"
+  ],
+  "database": {
+    "type": "json",
+    "path": "data.json"
+  },
+  "webhook_url": null,
+  "currency": "BTC"
+}
