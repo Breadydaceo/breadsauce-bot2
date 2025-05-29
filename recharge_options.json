@@ -1,37 +1,11 @@
 {
-  "options": [
-    {
-      "label": "$25",
-      "amount": 25
-    },
-    {
-      "label": "$50",
-      "amount": 50
-    },
-    {
-      "label": "$100",
-      "amount": 100
-    },
-    {
-      "label": "$150",
-      "amount": 150
-    },
-    {
-      "label": "$200",
-      "amount": 200
-    },
-    {
-      "label": "$300",
-      "amount": 300
-    },
-    {
-      "label": "$500",
-      "amount": 500
-    },
-    {
-      "label": "Custom",
-      "amount": "custom"
-    }
-  ],
-  "note": "BTC wallet address will be generated after you select an amount."
+  "BTC": [
+    { "usd": 25, "btc": 0.0007 },
+    { "usd": 50, "btc": 0.0014 },
+    { "usd": 100, "btc": 0.0028 },
+    { "usd": 200, "btc": 0.0056 },
+    { "usd": 300, "btc": 0.0084 },
+    { "usd": 500, "btc": 0.014 },
+    { "usd": 1000, "btc": 0.028 }
+  ]
 }
