@@ -29,7 +29,7 @@ def save_data():
 def send_welcome(message):
     username = message.from_user.username or "user"
     welcome = (
-        f"👋 Welcome back to Bread Sauce, @{username}
+        f"👋 Welcome back to Bread Sauce, @{username}"
 
 "
         "Use one of the tabs below to start shopping smart 💳
