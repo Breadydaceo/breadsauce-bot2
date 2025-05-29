@@ -17,7 +17,6 @@ def show_listings(call):
         name = product.get("name")
         category = product.get("category")
         price = product.get("price")
-        refundable = product.get("refundable", False)
         details = product.get("details", "No details available.")
 
         text = (
@@ -29,8 +28,13 @@ def show_listings(call):
 
         kb = InlineKeyboardMarkup(row_width=2)
         kb.add(
-            InlineKeyboardButton(f"BUY {price} BTC ❌", callback_data=f"buy_{pid}_no"),
-            InlineKeyboardButton(f"BUY {price} BTC ✅", callback_data=f"buy_{pid}_yes")
+            InlineKeyboardButton("✅ BUY", callback_data=f"buy_{pid}_yes"),
+            InlineKeyboardButton("🚫 CANCEL PURCHASE", callback_data="cancel_purchase")
         )
 
         bot.send_message(call.message.chat.id, text, parse_mode="Markdown", reply_markup=kb)
+
+@bot.callback_query_handler(func=lambda call: call.data == "cancel_purchase")
+def cancel_purchase(call):
+    bot.answer_callback_query(call.id)
+    bot.send_message(call.message.chat.id, "❌ Purchase canceled. You can keep browsing listings or return to the menu.")
