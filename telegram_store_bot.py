@@ -28,22 +28,22 @@ def save_data():
 def send_welcome(message):
     user_id = message.from_user.id
     username = message.from_user.username or "user"
-    welcome = f"""👋 Welcome back to Bread Sauce, @{username}
-
-    Use one of the tabs below to start shopping smart 💳
-
-    *Support:* @BreadSauceSupport
-
-    `Account → Recharge → Listings → Buy`
-
-    ⚠️ *Important:* BTC recharges are updated within 10 minutes.
+    welcome = f"👋 Welcome back to Bread Sauce, @{username}
+"
+    "Use one of the tabs below to start shopping smart 💳
+"
+    "*Support:* @BreadSauceSupport
+"
+    "`Account → Recharge → Listings → Buy`
+"
+    "⚠️ *Important:* BTC recharges are updated within 10 minutes.
     Your balance will be added automatically.
-
-    🤖 *Note:* Suspicious behavior may trigger bot protection."""
+"
+    "🤖 *Note:* Suspicious behavior may trigger bot protection."
     kb = InlineKeyboardMarkup(row_width=2)
     menu_buttons = [
         InlineKeyboardButton("💳 Gift Cards", callback_data="cat_Gift Cards"),
-        InlineKeyboardButton("🧾 Fullz", callback_data="cat_Fullz"),
+        InlineKeyboardButton("🪪 Proz", callback_data="cat_Fullz"),
         InlineKeyboardButton("🧠 BIN Numbers", callback_data="cat_BIN Numbers"),
         InlineKeyboardButton("💼 CCs", callback_data="cat_CCs"),
         InlineKeyboardButton("🔮 Glass", callback_data="cat_Glass"),
@@ -56,22 +56,21 @@ def send_welcome(message):
     if str(user_id) in ADMIN_IDS:
         kb.add(InlineKeyboardButton("🛠 Add Product", callback_data="admin_add_product"))
     bot.send_message(message.chat.id, welcome, reply_markup=kb, parse_mode="Markdown")
-
 @bot.callback_query_handler(func=lambda call: call.data == "admin_add_product")
 def prompt_add_product(call):
     if str(call.from_user.id) not in ADMIN_IDS:
         return bot.send_message(call.message.chat.id, "🚫 Not authorized.")
     msg = bot.send_message(call.message.chat.id, "✏️ Send product like this:
-
+"
 Name | Category | Price")
     bot.register_next_step_handler(msg, finish_add_product)
-
+"
 @bot.message_handler(commands=["addproduct"])
 def add_product_cmd(message):
     if str(message.from_user.id) not in ADMIN_IDS:
         return bot.send_message(message.chat.id, "🚫 Not authorized.")
-    msg = bot.send_message(message.chat.id, "✏️ Send product like this:
-
+    msg = bot.send_message(message.chat.id, "✏️ Send product like this:"
+"
 Name | Category | Price")
     bot.register_next_step_handler(msg, finish_add_product)
 
