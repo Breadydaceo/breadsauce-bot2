@@ -32,18 +32,18 @@ def send_welcome(message):
         f"👋 Welcome back to Bread Sauce, @{username}"
 
 "
-        "Use one of the tabs below to start shopping smart 💳
+        "Use one of the tabs below to start shopping smart 💳"
 
 "
-        "*Support:* @BreadSauceSupport
+        "*Support:* @BreadSauceSupport"
 
 "
-        "`Account → Recharge → Listings → Buy`
+        "`Account → Recharge → Listings → Buy`"
 
 "
-        "⚠️ *Important:* BTC recharges are updated within 10 minutes.
+        "⚠️ *Important:* BTC recharges are updated within 10 minutes."
 "
-        "Your balance will be added automatically.
+        "Your balance will be added automatically."
 "
         "🤖 *Note:* Suspicious behavior may trigger bot protection."
     )
