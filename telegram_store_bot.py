@@ -54,7 +54,9 @@ def send_welcome(message):
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
 def show_products(call):
     category_name = call.data.split("_", 1)[1]
-    
+
+    bot.answer_callback_query(call.id)  # ✅ Prevents stuck "loading"
+
     try:
         with open(config["database"]["path"]) as db_file:
             data = json.load(db_file)
