@@ -50,5 +50,31 @@ def send_welcome(message):
     ]
     kb.add(*menu_buttons)
     bot.send_message(message.chat.id, welcome, reply_markup=kb, parse_mode="Markdown")
+    bot.send_message(message.chat.id, welcome, reply_markup=kb, parse_mode="Markdown")
 
+@bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
+def show_products(call):
+    category_name = call.data.split("_", 1)[1]
+    
+    # Load current products
+    try:
+        with open(config["database"]["path"]) as db_file:
+            data = json.load(db_file)
+    except FileNotFoundError:
+        data = {"products": {}, "users": {}}
+
+    # Filter products by category
+    products = [
+        f"*{p['name']}* — {p['price']} BTC"
+        for p in data["products"].values()
+        if p["category"] == category_name
+    ]
+
+    if products:
+        product_list = "\n".join(products)
+        bot.send_message(call.message.chat.id, f"📦 *{category_name} Products:*\n\n{product_list}", parse_mode="Markdown")
+    else:
+        bot.send_message(call.message.chat.id, f"⚠️ No products available in *{category_name}*", parse_mode="Markdown")
+
+bot.polling()
 bot.polling()
