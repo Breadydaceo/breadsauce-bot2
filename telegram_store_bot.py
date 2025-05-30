@@ -5,12 +5,13 @@ import os
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 TOKEN = "8032004385:AAEyYPljNDvah5WxWNHurmYTq9WXSwBg8FY"
-ADMIN_IDS = ["8032004385"]
+ADMIN_IDS = ["7388528456"]
 SELLY_API_KEY = "ozJSANrGszds47fwWCo1nveeZHujSwGq_WCMs26EXZGP9m4zXssZfexZNd7TS549"
 RETURN_URL = "https://breadydaceo.selly.store"
 DB_PATH = "bot_db.json"
 
 bot = telebot.TeleBot(TOKEN)
+bot.remove_webhook()
 
 if not os.path.exists(DB_PATH):
     with open(DB_PATH, "w") as f:
@@ -59,20 +60,22 @@ def send_welcome(message):
 def list_category(call):
     category = call.data.split("_", 1)[1]
     products = [p for p in data["products"].values() if p["category"] == category]
+    kb_back = InlineKeyboardMarkup(row_width=1)
+    kb_back.add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
     if not products:
-        bot.edit_message_text("🚫 Nothing in this section right now.", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("🚫 Nothing in this section right now.", call.message.chat.id, call.message.message_id, reply_markup=kb_back)
         return
     for p in products:
         kb = InlineKeyboardMarkup(row_width=2)
         kb.add(
             InlineKeyboardButton("✅ Buy", callback_data=f"buy_{p['id']}"),
-            InlineKeyboardButton("🚫 Cancel", callback_data="cancel")
+            InlineKeyboardButton("🚫 Cancel", callback_data="back_main")
         )
         text = f"*🛍 {p['name']}*\n💲 *Price:* ${p['price']}"
         bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
 
-@bot.callback_query_handler(func=lambda call: call.data == "cancel")
-def cancel_back(call):
+@bot.callback_query_handler(func=lambda call: call.data == "back_main")
+def back_to_main(call):
     bot.edit_message_text("🔙 Back to main menu:", call.message.chat.id, call.message.message_id, reply_markup=build_menu())
 
 @bot.callback_query_handler(func=lambda call: call.data == "profile")
@@ -96,14 +99,16 @@ def show_rules(call):
         "🔁 One replacement per customer.\n"
         "🤖 Bot monitors suspicious activity."
     )
-    bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
+    bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda call: call.data == "listings")
 def show_listings(call):
     listings = ""
     for p in data["products"].values():
         listings += f"🛍️ {p['name']} (${p['price']}) — ID: `{p['id']}`\n"
-    bot.edit_message_text(listings or "📦 No listings available.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
+    bot.edit_message_text(listings or "📦 No listings available.", call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda call: call.data == "recharge")
 def recharge_prompt(call):
@@ -111,6 +116,7 @@ def recharge_prompt(call):
     options = [25, 50, 100, 150, 200, 300, 500]
     for amt in options:
         kb.add(InlineKeyboardButton(f"${amt}", callback_data=f"recharge_{amt}"))
+    kb.add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
     bot.edit_message_text("💰 *Choose recharge amount:*", call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("recharge_"))
@@ -132,11 +138,14 @@ def generate_invoice(call):
     response = requests.post("https://selly.io/api/v2/payment_requests", headers=headers, json=payload)
     if response.status_code == 200:
         invoice = response.json()
-        invoice_url = invoice.get("payment_redirection_url")
-        msg = f"🪙 *Send BTC here:*\n\n{invoice_url}"
+        btc_address = invoice.get("crypto_address")
+        if btc_address:
+            msg = f"🪙 *Send BTC to:*\n\n`{btc_address}`"
+        else:
+            msg = f"⚠️ *No BTC address returned. Try again shortly or contact support.*"
         bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
     else:
-        bot.answer_callback_query(call.id, "⚠️ Invoice generation failed.", show_alert=True)
+        bot.answer_callback_query(call.id, "⚠️ Could not generate BTC address.", show_alert=True)
 
 @bot.message_handler(commands=["credit"])
 def credit_user(message):
@@ -171,6 +180,5 @@ def add_product(message):
         bot.reply_to(message, f"✅ Added {name.strip()} to {category.strip()}")
     except:
         bot.reply_to(message, "Usage: /add |id|name|price|category")
-bot.remove_webhook()
 
 bot.polling()
