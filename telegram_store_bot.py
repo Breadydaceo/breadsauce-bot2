@@ -51,7 +51,7 @@ def send_welcome(message):
         "Tap below to start shopping smart 💳\n\n"
         "📞 *Support:* @BreadSauceSupport\n"
         "`Account → Recharge → Listings → Buy`\n\n"
-        "⚠️ *BTC recharges are updated manually within 10 minutes.*\n"
+        "⚠️ *BTC/LTC recharges are updated manually within 10 minutes.*\n"
         "🤖 Suspicious activity may trigger bot protection."
     )
     bot.send_message(message.chat.id, welcome, reply_markup=build_menu(), parse_mode="Markdown")
@@ -60,8 +60,7 @@ def send_welcome(message):
 def list_category(call):
     category = call.data.split("_", 1)[1]
     products = [p for p in data["products"].values() if p["category"] == category]
-    kb_back = InlineKeyboardMarkup(row_width=1)
-    kb_back.add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
+    kb_back = InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
     if not products:
         bot.edit_message_text("🚫 Nothing in this section right now.", call.message.chat.id, call.message.message_id, reply_markup=kb_back)
         return
@@ -111,74 +110,68 @@ def show_listings(call):
     bot.edit_message_text(listings or "📦 No listings available.", call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda call: call.data == "recharge")
-def recharge_prompt(call):
-    kb = InlineKeyboardMarkup(row_width=2)
-    options = [25, 50, 100, 150, 200, 300, 500]
-    for amt in options:
-        kb.add(InlineKeyboardButton(f"${amt}", callback_data=f"recharge_{amt}"))
+def recharge_button_options(call):
+    kb = InlineKeyboardMarkup(row_width=3)
+    for amt in [5, 25, 50, 100, 500, 1000]:
+        kb.add(InlineKeyboardButton(f"${amt}", callback_data=f"manual_btc_{amt}"))
     kb.add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
-    bot.edit_message_text("💰 *Choose recharge amount:*", call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
+    bot.edit_message_text("💸 Choose your deposit amount:", call.message.chat.id, call.message.message_id, reply_markup=kb)
 
-@bot.callback_query_handler(func=lambda call: call.data.startswith("recharge_"))
+@bot.message_handler(commands=["deposit"])
+def custom_deposit(message):
+    try:
+        amount = float(message.text.split()[1])
+        kb = InlineKeyboardMarkup(row_width=2)
+        kb.add(
+            InlineKeyboardButton("BTC", callback_data=f"manual_btc_{amount}"),
+            InlineKeyboardButton("LTC", callback_data=f"manual_ltc_{amount}"),
+            InlineKeyboardButton("🔙 Back", callback_data="back_main")
+        )
+        bot.send_message(message.chat.id, f"💰 *Choose coin for ${amount}:*", parse_mode="Markdown", reply_markup=kb)
+    except:
+        bot.reply_to(message, "⚠️ Usage: /deposit 100")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("manual_"))
 def generate_invoice(call):
-    amount = float(call.data.split("_", 1)[1])
+    _, coin, amt = call.data.split("_")
+    amount = float(amt)
     user_id = str(call.from_user.id)
+
     payload = {
         "title": f"Bread Sauce Recharge - {user_id}",
         "white_label": True,
         "value": amount,
-        "currency": "USD",
-        "email": f"{user_id}@noreply.io",
+        "currency": coin.upper(),
+        "payment_gateway": coin.lower(),
         "return_url": RETURN_URL
     }
+
     headers = {
         "Authorization": f"Bearer {SELLY_API_KEY}",
         "Content-Type": "application/json"
     }
+
     response = requests.post("https://selly.io/api/v2/payment_requests", headers=headers, json=payload)
+
     if response.status_code == 200:
         invoice = response.json()
-        btc_address = invoice.get("crypto_address")
-        if btc_address:
-            msg = f"🪙 *Send BTC to:*\n\n`{btc_address}`"
+        address = invoice.get("crypto_address")
+        charge_id = invoice.get("id")
+        value = invoice.get("value")
+
+        if address:
+            qr_url = f"https://api.qrserver.com/v1/create-qr-code/?data={address}"
+            caption = (
+                f"📥 *Send {coin.upper()} to the address below:*\n\n"
+                f"`{address}`\n\n"
+                f"💰 *Amount:* `{value}`\n"
+                f"🆔 *Charge ID:* `{charge_id}`\n\n"
+                "⚠️ Send exact amount. Use this address only once. Wait for confirmations."
+            )
+            bot.send_photo(call.message.chat.id, qr_url, caption=caption, parse_mode="Markdown")
         else:
-            msg = f"⚠️ *No BTC address returned. Try again shortly or contact support.*"
-        bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+            bot.send_message(call.message.chat.id, "⚠️ Address not available. Try again later.")
     else:
-        bot.answer_callback_query(call.id, "⚠️ Could not generate BTC address.", show_alert=True)
-
-@bot.message_handler(commands=["credit"])
-def credit_user(message):
-    if str(message.from_user.id) not in ADMIN_IDS:
-        return
-    try:
-        _, uid, amount = message.text.split()
-        uid = str(uid)
-        amount = float(amount)
-        if uid in data["users"]:
-            data["users"][uid]["balance"] += amount
-            save_data()
-            bot.reply_to(message, f"✅ Credited ${amount} to {uid}")
-        else:
-            bot.reply_to(message, "⚠️ User not found.")
-    except:
-        bot.reply_to(message, "Usage: /credit USER_ID AMOUNT")
-
-@bot.message_handler(commands=["add"])
-def add_product(message):
-    if str(message.from_user.id) not in ADMIN_IDS:
-        return
-    try:
-        _, pid, name, price, category = message.text.split("|")
-        data["products"][pid] = {
-            "id": pid,
-            "name": name.strip(),
-            "price": float(price),
-            "category": category.strip()
-        }
-        save_data()
-        bot.reply_to(message, f"✅ Added {name.strip()} to {category.strip()}")
-    except:
-        bot.reply_to(message, "Usage: /add |id|name|price|category")
+        bot.send_message(call.message.chat.id, "❌ Failed to generate invoice.")
 
 bot.polling()
