@@ -70,7 +70,7 @@ def list_category(call):
         )
         text = f"*🛍 {p['name']}*"
 "💲 *Price:* ${p['price']}"
-        bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
+    bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "cancel")
 def cancel_back(call):
