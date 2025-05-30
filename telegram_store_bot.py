@@ -11,7 +11,7 @@ with open("bot_config.json") as config_file:
 TOKEN = config["telegram_bot_token"]
 ADMIN_IDS = config["admin_ids"]
 CATEGORIES = config["categories"]
-SELLY_API_KEY = config["nowpayments_api_key"]
+SELLY_API_KEY = config["selly_api_key"]
 DATABASE_PATH = config["database"]["path"]
 
 bot = telebot.TeleBot(TOKEN)
