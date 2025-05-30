@@ -1,8 +1,8 @@
-    import telebot
-    import json
-    import requests
-    import uuid
-    from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
+import telebot
+import json
+import requests
+import uuid
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
     # Load configuration
     with open("bot_config.json") as config_file:
