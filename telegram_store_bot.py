@@ -57,7 +57,7 @@ def show_products(call):
                 InlineKeyboardButton("🚫 Cancel", callback_data="cancel"),
                 InlineKeyboardButton("🔙 Back", callback_data="main_menu")
             )
-            text = f"*🛍 {prod['name']}*
+            text = f"*🎁 {prod['name']}*\n💰 *Price:* {prod['price']} BTC"
 💸 *Price:* {prod['price']} BTC"
             bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
             return
