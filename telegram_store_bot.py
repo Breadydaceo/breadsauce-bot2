@@ -84,7 +84,7 @@ def show_profile(call):
 
 "🪪 *User:* @{user['username']}"
 "💰 *Balance:* ${user['balance']:.2f}"
-    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "rules")
 def show_rules(call):
@@ -96,7 +96,7 @@ def show_rules(call):
         "🔁 One replacement per customer."
         "🤖 Bot monitors suspicious activity."
     )
-    bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+@bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "listings")
 def show_listings(call):
