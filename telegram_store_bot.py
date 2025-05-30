@@ -46,11 +46,11 @@ def send_welcome(message):
     data["users"].setdefault(user_id, {"username": username, "balance": 0})
     save_data()
     welcome = (
-        f"👋 Welcome back to *Bread Sauce*, @{username}"
-        "Tap below to start shopping smart 💳"
-        "📞 *Support:* @BreadSauceSupport"
-        "`Account → Recharge → Listings → Buy`"
-        "⚠️ *BTC recharges are updated manually within 10 minutes.*"
+        f"👋 Welcome back to *Bread Sauce*, @{username}\n\n"
+        "Tap below to start shopping smart 💳\n\n"
+        "📞 *Support:* @BreadSauceSupport\n"
+        "`Account → Recharge → Listings → Buy`\n\n"
+        "⚠️ *BTC recharges are updated manually within 10 minutes.*\n"
         "🤖 Suspicious activity may trigger bot protection."
     )
     bot.send_message(message.chat.id, welcome, reply_markup=build_menu(), parse_mode="Markdown")
@@ -68,9 +68,8 @@ def list_category(call):
             InlineKeyboardButton("✅ Buy", callback_data=f"buy_{p['id']}"),
             InlineKeyboardButton("🚫 Cancel", callback_data="cancel")
         )
-        text = f"*🛍 {p['name']}*"
-"💲 *Price:* ${p['price']}"
-@bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
+        text = f"*🛍 {p['name']}*\n💲 *Price:* ${p['price']}"
+        bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "cancel")
 def cancel_back(call):
@@ -80,29 +79,30 @@ def cancel_back(call):
 def show_profile(call):
     uid = str(call.from_user.id)
     user = data["users"].get(uid, {"username": "unknown", "balance": 0})
-    msg = f"👤 *Your Profile*"
-
-"🪪 *User:* @{user['username']}"
-"💰 *Balance:* ${user['balance']:.2f}"
-@bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    msg = (
+        f"👤 *Your Profile*\n\n"
+        f"🪪 *User:* @{user['username']}\n"
+        f"💰 *Balance:* ${user['balance']:.2f}"
+    )
+    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "rules")
 def show_rules(call):
     rules = (
-        "📜 *Store Rules:*"
-        "❌ No refunds."
-        "🧠 Know what you’re buying."
-        "🛡️ Replacements allowed with proof (low-end only)."
-        "🔁 One replacement per customer."
+        "📜 *Store Rules:*\n\n"
+        "❌ No refunds.\n"
+        "🧠 Know what you’re buying.\n"
+        "🛡️ Replacements allowed with proof (low-end only).\n"
+        "🔁 One replacement per customer.\n"
         "🤖 Bot monitors suspicious activity."
     )
-@bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "listings")
 def show_listings(call):
     listings = ""
     for p in data["products"].values():
-        listings += f"🛍️ {p['name']} (${p['price']}) — ID: `{p['id']}`"
+        listings += f"🛍️ {p['name']} (${p['price']}) — ID: `{p['id']}`\n"
     bot.edit_message_text(listings or "📦 No listings available.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "recharge")
@@ -119,11 +119,11 @@ def generate_invoice(call):
     user_id = str(call.from_user.id)
     payload = {
         "title": f"Bread Sauce Recharge - {user_id}",
-        "white_label": True,"
-        "value": amount,"
-        "currency": "USD","
-        "email": f"{user_id}@noreply.io","
-        "return_url": RETURN_URL"
+        "white_label": True,
+        "value": amount,
+        "currency": "USD",
+        "email": f"{user_id}@noreply.io",
+        "return_url": RETURN_URL
     }
     headers = {
         "Authorization": f"Bearer {SELLY_API_KEY}",
@@ -133,12 +133,10 @@ def generate_invoice(call):
     if response.status_code == 200:
         invoice = response.json()
         invoice_url = invoice.get("payment_redirection_url")
-        msg = f"🪙 *Send BTC here:*"
-
-"{invoice_url}"
-@bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+        msg = f"🪙 *Send BTC here:*\n\n{invoice_url}"
+        bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
     else:
-@bot.answer_callback_query(call.id, "⚠️ Invoice generation failed.", show_alert=false)
+        bot.answer_callback_query(call.id, "⚠️ Invoice generation failed.", show_alert=True)
 
 @bot.message_handler(commands=["credit"])
 def credit_user(message):
@@ -170,7 +168,7 @@ def add_product(message):
             "category": category.strip()
         }
         save_data()
-        bot.reply_to(message, f"✅ Added {name} to {category}")
+        bot.reply_to(message, f"✅ Added {name.strip()} to {category.strip()}")
     except:
         bot.reply_to(message, "Usage: /add |id|name|price|category")
 
