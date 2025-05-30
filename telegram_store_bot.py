@@ -84,7 +84,7 @@ def show_profile(call):
 
 "🪪 *User:* @{user['username']}"
 "💰 *Balance:* ${user['balance']:.2f}"
-bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+@bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "rules")
 def show_rules(call):
@@ -119,11 +119,11 @@ def generate_invoice(call):
     user_id = str(call.from_user.id)
     payload = {
         "title": f"Bread Sauce Recharge - {user_id}",
-        "white_label": True,
-        "value": amount,
-        "currency": "USD",
-        "email": f"{user_id}@noreply.io",
-        "return_url": RETURN_URL
+        "white_label": True,"
+        "value": amount,"
+        "currency": "USD","
+        "email": f"{user_id}@noreply.io","
+        "return_url": RETURN_URL"
     }
     headers = {
         "Authorization": f"Bearer {SELLY_API_KEY}",
@@ -133,12 +133,12 @@ def generate_invoice(call):
     if response.status_code == 200:
         invoice = response.json()
         invoice_url = invoice.get("payment_redirection_url")
-        msg = f"🪙 *Send BTC here:*
+        msg = f"🪙 *Send BTC here:*"
 
-{invoice_url}"
-        bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+"{invoice_url}"
+@bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
     else:
-        bot.answer_callback_query(call.id, "⚠️ Invoice generation failed.", show_alert=True)
+@bot.answer_callback_query(call.id, "⚠️ Invoice generation failed.", show_alert=false)
 
 @bot.message_handler(commands=["credit"])
 def credit_user(message):
