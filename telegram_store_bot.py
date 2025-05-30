@@ -80,10 +80,10 @@ def cancel_back(call):
 def show_profile(call):
     uid = str(call.from_user.id)
     user = data["users"].get(uid, {"username": "unknown", "balance": 0})
-    msg = f"👤 *Your Profile*
+    msg = f"👤 *Your Profile*"
 
-🪪 *User:* @{user['username']}
-💰 *Balance:* ${user['balance']:.2f}"
+"🪪 *User:* @{user['username']}"
+"💰 *Balance:* ${user['balance']:.2f}"
     bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "rules")
