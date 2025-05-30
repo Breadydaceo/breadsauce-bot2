@@ -46,19 +46,11 @@ def send_welcome(message):
     data["users"].setdefault(user_id, {"username": username, "balance": 0})
     save_data()
     welcome = (
-        f"👋 Welcome back to *Bread Sauce*, @{username}
-
-"
-        "Tap below to start shopping smart 💳
-
-"
-        "📞 *Support:* @BreadSauceSupport
-"
-        "`Account → Recharge → Listings → Buy`
-
-"
-        "⚠️ *BTC recharges are updated manually within 10 minutes.*
-"
+        f"👋 Welcome back to *Bread Sauce*, @{username}"
+        "Tap below to start shopping smart 💳"
+        "📞 *Support:* @BreadSauceSupport"
+        "`Account → Recharge → Listings → Buy`"
+        "⚠️ *BTC recharges are updated manually within 10 minutes.*"
         "🤖 Suspicious activity may trigger bot protection."
     )
     bot.send_message(message.chat.id, welcome, reply_markup=build_menu(), parse_mode="Markdown")
@@ -76,8 +68,8 @@ def list_category(call):
             InlineKeyboardButton("✅ Buy", callback_data=f"buy_{p['id']}"),
             InlineKeyboardButton("🚫 Cancel", callback_data="cancel")
         )
-        text = f"*🛍 {p['name']}*
-💸 *Price:* ${p['price']}"
+        text = f"*🛍 {p['name']}*"
+"💲 *Price:* ${p['price']}"
         bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "cancel")
@@ -97,17 +89,11 @@ def show_profile(call):
 @bot.callback_query_handler(func=lambda call: call.data == "rules")
 def show_rules(call):
     rules = (
-        "📜 *Store Rules:*
-
-"
-        "❌ No refunds.
-"
-        "🧠 Know what you’re buying.
-"
-        "🛡️ Replacements allowed with proof (low-end only).
-"
-        "🔁 One replacement per customer.
-"
+        "📜 *Store Rules:*"
+        "❌ No refunds."
+        "🧠 Know what you’re buying."
+        "🛡️ Replacements allowed with proof (low-end only)."
+        "🔁 One replacement per customer."
         "🤖 Bot monitors suspicious activity."
     )
     bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
@@ -116,8 +102,7 @@ def show_rules(call):
 def show_listings(call):
     listings = ""
     for p in data["products"].values():
-        listings += f"🛍️ {p['name']} (${p['price']}) — ID: `{p['id']}`
-"
+        listings += f"🛍️ {p['name']} (${p['price']}) — ID: `{p['id']}`"
     bot.edit_message_text(listings or "📦 No listings available.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "recharge")
