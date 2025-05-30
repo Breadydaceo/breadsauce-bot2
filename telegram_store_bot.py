@@ -14,7 +14,6 @@ SELLY_API_KEY = config["selly_api_key"]
 DATABASE_PATH = config["database"]["path"]
 
 bot = telebot.TeleBot(TOKEN)
-
 try:
     with open(DATABASE_PATH) as db_file:
         data = json.load(db_file)
