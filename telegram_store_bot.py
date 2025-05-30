@@ -171,5 +171,6 @@ def add_product(message):
         bot.reply_to(message, f"✅ Added {name.strip()} to {category.strip()}")
     except:
         bot.reply_to(message, "Usage: /add |id|name|price|category")
+bot.remove_webhook()
 
 bot.polling()
