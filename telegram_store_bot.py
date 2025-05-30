@@ -3,9 +3,9 @@ import json
 import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Load config
-with open("bot_config.json") as config_file:
-    config = json.load(config_file)
+# Load configuration
+with open("bot_config.json") as f:
+    config = json.load(f)
 
 TOKEN = config["telegram_bot_token"]
 ADMIN_IDS = config["admin_ids"]
@@ -28,18 +28,9 @@ def save_data():
         json.dump(data, db_file, indent=2)
 
 
-def get_main_menu(username):
-    welcome = (
-        f"👋 Welcome back to *Bread Sauce*, @{username}\n"
-        "Tap below to start shopping smart 💳\n\n"
-        "📞 *Support:* @BreadSauceSupport\n"
-        "`Account → Recharge → Listings → Buy`\n\n"
-        "⚠️ *BTC recharges are updated within 10 minutes.*\n"
-        "Your balance will be credited manually.\n\n"
-        "🤖 *Note:* Suspicious behavior may trigger bot lock."
-    )
+def main_menu_markup():
     kb = InlineKeyboardMarkup(row_width=2)
-    buttons = [
+    kb.add(
         InlineKeyboardButton("💳 Gift Cards", callback_data="cat_Gift Cards"),
         InlineKeyboardButton("🪪 Fullz", callback_data="cat_Fullz"),
         InlineKeyboardButton("🧠 BIN Numbers", callback_data="cat_BIN Numbers"),
@@ -49,9 +40,8 @@ def get_main_menu(username):
         InlineKeyboardButton("📂 Listings", callback_data="listings"),
         InlineKeyboardButton("👤 Profile", callback_data="profile"),
         InlineKeyboardButton("📜 Rules", callback_data="rules")
-    ]
-    kb.add(*buttons)
-    return welcome, kb
+    )
+    return kb
 
 
 @bot.message_handler(commands=["start"])
@@ -61,33 +51,39 @@ def send_welcome(message):
     data["users"].setdefault(user_id, {"username": username, "balance": 0})
     save_data()
 
-    welcome_text, menu_kb = get_main_menu(username)
-    bot.send_message(message.chat.id, welcome_text, reply_markup=menu_kb, parse_mode="Markdown")
-
-
-@bot.callback_query_handler(func=lambda call: call.data == "cancel")
-def cancel_back(call):
-    user_id = str(call.from_user.id)
-    username = data["users"].get(user_id, {}).get("username", "User")
-    welcome_text, menu_kb = get_main_menu(username)
-    bot.edit_message_text(welcome_text, call.message.chat.id, call.message.message_id, reply_markup=menu_kb, parse_mode="Markdown")
+    welcome = (
+        f"👋 Welcome back to *Bread Sauce*, @{username}\n\n"
+        "Tap below to start shopping smart 💳\n\n"
+        "📞 *Support:* @BreadSauceSupport\n"
+        "`Account → Recharge → Listings → Buy`\n\n"
+        "⚠️ *BTC recharges are updated within 10 minutes.*\n"
+        "Your balance will be credited manually.\n\n"
+        "🤖 *Note:* Suspicious behavior may trigger bot lock."
+    )
+    bot.send_message(message.chat.id, welcome, reply_markup=main_menu_markup(), parse_mode="Markdown")
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
 def show_products(call):
     category = call.data.split("_", 1)[1]
+    matched = [p for p in data["products"].items() if p[1]["category"].lower() == category.lower()]
+    if not matched:
+        bot.answer_callback_query(call.id, "No products available.", show_alert=True)
+        return
 
-    for pid, prod in data["products"].items():
-        if prod["category"].lower() == category.lower():
-            kb = InlineKeyboardMarkup(row_width=2)
-            kb.add(
-                InlineKeyboardButton("✅ Buy", callback_data=f"buy_{pid}"),
-                InlineKeyboardButton("🚫 Cancel", callback_data="cancel")
-            )
-            text = f"*🛍 {prod['name']}*\n💸 *Price:* {prod['price']} BTC"
-            bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
-            return
-    bot.answer_callback_query(call.id, "No products available.", show_alert=True)
+    for pid, prod in matched:
+        kb = InlineKeyboardMarkup(row_width=2)
+        kb.add(
+            InlineKeyboardButton("✅ Buy", callback_data=f"buy_{pid}"),
+            InlineKeyboardButton("🔙 Back", callback_data="back_main")
+        )
+        text = f"*🛍 {prod['name']}*\n💸 *Price:* {prod['price']} BTC"
+        bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "back_main")
+def go_back_main(call):
+    bot.edit_message_text("⬅️ Returning to main menu...", call.message.chat.id, call.message.message_id, reply_markup=main_menu_markup(), parse_mode="Markdown")
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
@@ -107,67 +103,20 @@ def buy_product(call):
         return
 
     data["users"][user_id]["balance"] -= float(product["price"])
-    product_info = product.get("info", "No info available.")
-    save_data()
+    info = product.get("info", "No info available.")
+    bot.send_message(call.message.chat.id, f"✅ *Purchase Complete!*\n\n📦 *{product['name']}*\n💳 *Info:* `{info}`", parse_mode="Markdown")
 
-    bot.edit_message_text(
-        f"✅ *Purchase Complete!*\n\n📦 *{product['name']}*\n💳 *Info:* `{product_info}`",
-        call.message.chat.id,
-        call.message.message_id,
-        parse_mode="Markdown"
-    )
+    # Remove from inventory
+    del data["products"][pid]
+    save_data()
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "profile")
 def show_profile(call):
     user_id = str(call.from_user.id)
     user = data["users"].get(user_id, {"username": "Unknown", "balance": 0})
-    balance = user["balance"]
-    text = f"👤 *Your Profile*\n\n🪪 *User:* @{user['username']}\n💰 *Balance:* {balance:.8f} BTC"
+    text = f"👤 *Your Profile*\n\n🪪 *User:* @{user['username']}\n💰 *Balance:* {user['balance']:.8f} BTC"
     bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
-
-
-@bot.callback_query_handler(func=lambda call: call.data == "recharge")
-def recharge_menu(call):
-    kb = InlineKeyboardMarkup(row_width=2)
-    kb.add(
-        InlineKeyboardButton("₿ Bitcoin", callback_data="recharge_btc"),
-        InlineKeyboardButton("🪙 Litecoin", callback_data="recharge_ltc"),
-        InlineKeyboardButton("🔙 Back", callback_data="cancel")
-    )
-    bot.edit_message_text("💳 *Choose your payment method:*", call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
-
-
-@bot.callback_query_handler(func=lambda call: call.data.startswith("recharge_"))
-def generate_invoice(call):
-    coin = call.data.split("_", 1)[1]
-
-    payload = {
-        "title": "Bread Sauce Recharge",
-        "white_label": True,
-        "currency": "USD",
-        "value": 50.00,
-        "payment_gateway": coin
-    }
-
-    headers = {
-        "Authorization": f"Bearer {SELLY_API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    response = requests.post("https://selly.io/api/v2/payment_requests", headers=headers, json=payload)
-
-    if response.status_code == 200:
-        invoice = response.json()
-        url = invoice.get("payment_redirection_url", "No URL")
-        bot.edit_message_text(
-            f"💸 *Payment Invoice Generated:*\nSend the payment to complete recharge.\n\n🔗 {url}",
-            call.message.chat.id,
-            call.message.message_id,
-            parse_mode="Markdown"
-        )
-    else:
-        bot.answer_callback_query(call.id, "❌ Failed to generate invoice.", show_alert=True)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "rules")
@@ -190,15 +139,65 @@ def show_listings(call):
     for prod in data["products"].values():
         summaries.setdefault(prod["category"], []).append(prod)
 
-    message = ""
+    msg = ""
     for cat, items in summaries.items():
-        message += f"*{cat} Products:*\n"
+        msg += f"*{cat} Products:*\n"
         for prod in items:
-            message += f"🛍️ {prod['name']}\n💸 Price: {prod['price']} BTC\n\n"
+            msg += f"🛍️ {prod['name']}\n💸 Price: {prod['price']} BTC\n\n"
 
-    if not message:
-        message = "📦 No listings available."
-    bot.edit_message_text(message, call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text(msg or "📦 No listings available.", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "recharge")
+def recharge_menu(call):
+    kb = InlineKeyboardMarkup(row_width=2)
+    for amount in [25, 50, 100, 150, 200, 300, 500]:
+        kb.add(InlineKeyboardButton(f"${amount}", callback_data=f"recharge_{amount}"))
+    kb.add(InlineKeyboardButton("🔙 Back", callback_data="back_main"))
+    bot.edit_message_text("💳 *Select amount to recharge:*", call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
+
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("recharge_"))
+def generate_invoice(call):
+    user_id = str(call.from_user.id)
+    amount = float(call.data.split("_")[1])
+
+    payload = {
+        "title": "Bread Sauce Recharge",
+        "currency": "USD",
+        "value": amount,
+        "white_label": True
+    }
+
+    headers = {
+        "Authorization": f"Bearer {SELLY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    r = requests.post("https://selly.io/api/v2/payment_requests", headers=headers, json=payload)
+    if r.status_code == 200:
+        link = r.json().get("payment_redirection_url", "Unavailable")
+        bot.send_message(call.message.chat.id, f"💸 *Send BTC here:*\n\n{link}", parse_mode="Markdown")
+    else:
+        bot.answer_callback_query(call.id, "❌ Failed to create invoice.", show_alert=True)
+
+
+# === Admin-Only Command Example ===
+@bot.message_handler(commands=["credit"])
+def credit_user(message):
+    if message.from_user.id not in ADMIN_IDS:
+        bot.reply_to(message, "⛔️ Unauthorized")
+        return
+
+    try:
+        _, uid, amount = message.text.split()
+        amount = float(amount)
+        data["users"].setdefault(uid, {"username": "Unknown", "balance": 0})
+        data["users"][uid]["balance"] += amount
+        save_data()
+        bot.reply_to(message, f"✅ Credited {amount} BTC to user {uid}")
+    except Exception:
+        bot.reply_to(message, "❌ Usage: /credit USER_ID AMOUNT")
 
 
 bot.polling()
