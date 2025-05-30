@@ -131,6 +131,24 @@ def custom_deposit(message):
     except:
         bot.reply_to(message, "⚠️ Usage: /deposit 100")
 
+@bot.callback_query_handler(func=lambda call: call.data == "recharge")
+def recharge_prompt(call):
+    kb = InlineKeyboardMarkup(row_width=2)
+    for amt in [25, 50, 100, 150, 200, 300, 500]:
+        kb.add(InlineKeyboardButton(f"${amt}", callback_data=f"choosecoin_{amt}"))
+    bot.edit_message_text("💰 *Choose how much you want to recharge:*", call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith("choosecoin_"))
+def coin_selector(call):
+    amount = call.data.split("_")[1]
+    kb = InlineKeyboardMarkup(row_width=2)
+    kb.add(
+        InlineKeyboardButton("₿ BTC", callback_data=f"manual_btc_{amount}"),
+        InlineKeyboardButton("🪙 LTC", callback_data=f"manual_ltc_{amount}"),
+        InlineKeyboardButton("🔙 Back", callback_data="recharge")
+    )
+    bot.edit_message_text(f"💱 *Select coin for ${amount} recharge:*", call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
+
 @bot.callback_query_handler(func=lambda call: call.data.startswith("manual_"))
 def generate_invoice(call):
     _, coin, amt = call.data.split("_")
@@ -143,35 +161,38 @@ def generate_invoice(call):
         "value": amount,
         "currency": coin.upper(),
         "payment_gateway": coin.lower(),
-        "return_url": RETURN_URL
+        "product_id": "pay",
+        "return_url": "https://breadydaceo.selly.store"
     }
 
     headers = {
-        "Authorization": f"Bearer {SELLY_API_KEY}",
+        "Authorization": "Bearer ozJSANrGszds47fwWCo1nveeZHujSwGq_WCMs26EXZGP9m4zXssZfexZNd7TS549",
         "Content-Type": "application/json"
     }
 
-    response = requests.post("https://selly.io/api/v2/payment_requests", headers=headers, json=payload)
-
-    if response.status_code == 200:
-        invoice = response.json()
-        address = invoice.get("crypto_address")
-        charge_id = invoice.get("id")
-        value = invoice.get("value")
-
-        if address:
-            qr_url = f"https://api.qrserver.com/v1/create-qr-code/?data={address}"
-            caption = (
-                f"📥 *Send {coin.upper()} to the address below:*\n\n"
-                f"`{address}`\n\n"
-                f"💰 *Amount:* `{value}`\n"
-                f"🆔 *Charge ID:* `{charge_id}`\n\n"
-                "⚠️ Send exact amount. Use this address only once. Wait for confirmations."
-            )
-            bot.send_photo(call.message.chat.id, qr_url, caption=caption, parse_mode="Markdown")
+    try:
+        response = requests.post("https://selly.io/api/v2/payment_requests", headers=headers, json=payload)
+        if response.status_code == 200:
+            invoice = response.json()
+            address = invoice.get("crypto_address")
+            charge_id = invoice.get("id")
+            value = invoice.get("value")
+            if address:
+                qr_url = f"https://api.qrserver.com/v1/create-qr-code/?data={address}"
+                caption = (
+                    f"📥 *Send {coin.upper()} to the address below:*\n\n"
+                    f"`{address}`\n\n"
+                    f"💰 *Amount:* `{value}`\n"
+                    f"🆔 *Charge ID:* `{charge_id}`\n\n"
+                    "⚠️ Send exact amount. Use this address only once. Wait for confirmations."
+                )
+                bot.send_photo(call.message.chat.id, qr_url, caption=caption, parse_mode="Markdown")
+            else:
+                bot.send_message(call.message.chat.id, f"⚠️ No address returned.\n\n`{invoice}`", parse_mode="Markdown")
         else:
-            bot.send_message(call.message.chat.id, "⚠️ Address not available. Try again later.")
-    else:
-        bot.send_message(call.message.chat.id, "❌ Failed to generate invoice.")
+            error = response.text
+            bot.send_message(call.message.chat.id, f"❌ Failed to generate invoice.\n`{error}`", parse_mode="Markdown")
+    except Exception as e:
+        bot.send_message(call.message.chat.id, f"🔥 Exception:\n`{str(e)}`", parse_mode="Markdown")
 
 bot.polling()
