@@ -4,9 +4,9 @@ import os
 import requests
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-TOKEN = "YOUR_BOT_TOKEN"
+TOKEN = "8032004385:AAEyYPljNDvah5WxWNHurmYTq9WXSwBg8FY"
 ADMIN_IDS = ["7388528456"]
-SELLY_API_KEY = "YOUR_SELLY_API_KEY"
+SELLY_API_KEY = "Nz9mvDhUj_u1ESbbj_acvHPdWiah6zxVr7YfA2pJ66eg16kB4ZQrTN7KT_8-e_4n"
 RETURN_URL = "https://breadydaceo.selly.store"
 DB_PATH = "bot_db.json"
 
