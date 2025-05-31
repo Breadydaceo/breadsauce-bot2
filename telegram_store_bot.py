@@ -66,17 +66,22 @@ def handle_back(call):
 def show_category(call):
     category = call.data.split("_", 1)[1]
     products = [p for p in data["products"].values() if p["category"] == category]
+    
     if not products:
         bot.edit_message_text("🚫 Nothing in this section right now.", call.message.chat.id, call.message.message_id, reply_markup=back_button())
         return
+
     for p in products:
+        text = f"🛍 *{p['name']}*\n💵 Price: *${p['price']}*"
         kb = InlineKeyboardMarkup(row_width=2)
         kb.add(
             InlineKeyboardButton("✅ Buy", callback_data=f"buy_{p['id']}"),
             InlineKeyboardButton("🚫 Cancel", callback_data="back_to_menu")
         )
-        text = f"*🛍 {p['name']}*\n💲 *Price:* ${p['price']}"
         bot.send_message(call.message.chat.id, text, reply_markup=kb, parse_mode="Markdown")
+
+    # One clean Back button at the bottom of the category
+    bot.send_message(call.message.chat.id, "⬅️ Back to menu:", reply_markup=back_button())
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
 def handle_buy(call):
