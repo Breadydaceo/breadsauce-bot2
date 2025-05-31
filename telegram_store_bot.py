@@ -8,10 +8,10 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 with open("bot_config.json") as config_file:
     config = json.load(config_file)
 
-TOKEN = config["telegram_bot_token"]
-ADMIN_IDS = config["admin_ids"]
+TOKEN = config["8032004385:AAEyYPljNDvah5WxWNHurmYTq9WXSwBg8FY"]
+ADMIN_IDS = config["7388528456"]
 CATEGORIES = config["categories"]
-SELLY_API_KEY = config["selly_api_key"]
+SELLY_API_KEY = config["Nz9mvDhUj_u1ESbbj_acvHPdWiah6zxVr7YfA2pJ66eg16kB4ZQrTN7KT_8-e_4n"]
 bot = telebot.TeleBot(TOKEN)
 data_path = config["database"]["path"]
 
