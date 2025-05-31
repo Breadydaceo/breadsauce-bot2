@@ -1,30 +1,32 @@
 import telebot
 import json
-import os
+import requests
 import uuid
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 
-# Load Config
-with open("bot_config.json") as f:
-    config = json.load(f)
+# === CONFIG ===
+with open("bot_config.json") as config_file:
+    config = json.load(config_file)
 
 TOKEN = config["telegram_bot_token"]
 ADMIN_IDS = config["admin_ids"]
 CATEGORIES = config["categories"]
-DATA_FILE = config["database"]["path"]
-
+SELLY_API_KEY = config["selly_api_key"]
 bot = telebot.TeleBot(TOKEN)
+data_path = config["database"]["path"]
 
-# Load or initialize data
-if os.path.exists(DATA_FILE):
-    with open(DATA_FILE) as f:
-        data = json.load(f)
-else:
+try:
+    with open(data_path) as db_file:
+        data = json.load(db_file)
+except FileNotFoundError:
     data = {"products": {}, "users": {}}
 
 def save_data():
-    with open(DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    with open(data_path, "w") as db_file:
+        json.dump(data, db_file, indent=2)
+
+def is_admin(user_id):
+    return str(user_id) in ADMIN_IDS
 
 def main_menu():
     kb = InlineKeyboardMarkup(row_width=2)
@@ -44,174 +46,197 @@ def main_menu():
 
 @bot.message_handler(commands=["start"])
 def send_welcome(message):
-    user_id = str(message.from_user.id)
-    if user_id not in data["users"]:
-        data["users"][user_id] = {"balance": 0}
+    uid = str(message.from_user.id)
+    if uid not in data["users"]:
+        data["users"][uid] = {"balance": 0}
         save_data()
-    bot.send_message(message.chat.id,
+    bot.send_message(
+        message.chat.id,
         f"👋 Welcome to Bread Sauce, @{message.from_user.username or 'user'}\n\n"
-        "Use one of the tabs below to start shopping smart 💳\n\n"
+        "Use the buttons below to navigate the store.\n\n"
         "*Support:* @BreadSauceSupport\n\n"
         "`Account → Recharge → Listings → Buy`\n\n"
-        "⚠️ *Important:* BTC/LTC recharges are manual. You'll be credited once payment is confirmed.\n\n"
-        "🤖 *Note:* Suspicious behavior may trigger bot protection.",
-        parse_mode="Markdown", reply_markup=main_menu())
+        "⚠️ BTC/LTC recharges are manually approved.\n\n"
+        "🤖 *Bot behavior triggers detection.*",
+        reply_markup=main_menu(),
+        parse_mode="Markdown"
+    )
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("cat_"))
 def show_category(call):
-    cat_name = call.data[4:]
+    cat = call.data[4:]
+    msg = f"📂 *{cat} Listings:*\n\n"
     kb = InlineKeyboardMarkup(row_width=2)
-    msg = f"📂 *Products in {cat_name}*:\n\n"
     found = False
-    for pid, prod in data["products"].items():
-        if prod["category"] == cat_name:
-            msg += f"🛒 *{prod['name']}*\nPRICE : ${prod['price']} Purchase 🛒\n\n"
+
+    for pid, product in data["products"].items():
+        if product["category"] == cat:
+            msg += f"{product['name']}\nPRICE : ${product['price']} Purchase 🛒\n\n"
             kb.add(InlineKeyboardButton("🛒 Purchase", callback_data=f"preview_{pid}"))
             found = True
-    kb.add(InlineKeyboardButton("🔙 Back", callback_data="back_menu"))
-    if not found:
-        bot.edit_message_text("🚫 Nothing in this section right now.",
-                              call.message.chat.id, call.message.message_id)
-    else:
-        bot.edit_message_text(msg, call.message.chat.id, call.message.message_id,
-                              parse_mode="Markdown", reply_markup=kb)
+
+    kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+    bot.edit_message_text(msg if found else "🚫 Nothing in this category yet.",
+                          chat_id=call.message.chat.id,
+                          message_id=call.message.message_id,
+                          reply_markup=kb,
+                          parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("preview_"))
-def preview_product(call):
-    pid = call.data[8:]
-    product = data["products"].get(pid)
-    if not product:
-        bot.answer_callback_query(call.id, "Product not found.")
-        return
-    msg = f"Info: {product['name']}\nPRICE : ${product['price']}\n{product['description']}"
+def show_preview(call):
+    pid = call.data.split("_")[1]
+    prod = data["products"].get(pid)
+    if not prod:
+        return bot.answer_callback_query(call.id, "Product not found.")
+    msg = (
+        f"Info: {prod['name']}\n"
+        f"PRICE : ${prod['price']}\n"
+        f"{prod['preview']}"
+    )
     kb = InlineKeyboardMarkup(row_width=2)
     kb.add(
         InlineKeyboardButton("✅ Buy", callback_data=f"buy_{pid}"),
-        InlineKeyboardButton("🚫 Cancel", callback_data=f"cat_{product['category']}")
+        InlineKeyboardButton("🚫 Cancel", callback_data=f"cat_{prod['category']}")
     )
-    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id,
-                          reply_markup=kb)
+    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("buy_"))
 def buy_product(call):
-    user_id = str(call.from_user.id)
-    pid = call.data[4:]
-    user = data["users"].get(user_id, {"balance": 0})
-    product = data["products"].get(pid)
-    if not product:
-        bot.answer_callback_query(call.id, "Product not found.")
-        return
-    if user["balance"] < product["price"]:
-        bot.answer_callback_query(call.id, "❌ Not enough balance.")
-        return
-    user["balance"] -= product["price"]
+    uid = str(call.from_user.id)
+    pid = call.data.split("_")[1]
+    prod = data["products"].get(pid)
+    if not prod:
+        return bot.answer_callback_query(call.id, "Product not found.")
+    user_bal = data["users"][uid]["balance"]
+
+    if user_bal < prod["price"]:
+        return bot.answer_callback_query(call.id, "Insufficient balance.")
+    
+    data["users"][uid]["balance"] -= prod["price"]
+    bot.send_message(call.message.chat.id, f"✅ *Purchased:* `{prod['name']}`\n\n{prod['content']}", parse_mode="Markdown")
     del data["products"][pid]
     save_data()
-    bot.edit_message_text(
-        f"✅ *Purchase successful!*\n\n*{product['name']}*\n\n`{product['content']}`",
-        call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "recharge")
-def recharge_options(call):
+def handle_recharge(call):
     kb = InlineKeyboardMarkup(row_width=2)
     for amt in [25, 50, 100, 150, 200, 300, 500]:
         kb.add(InlineKeyboardButton(f"${amt}", callback_data=f"pay_{amt}"))
-    kb.add(InlineKeyboardButton("🔙 Back", callback_data="back_menu"))
-    bot.edit_message_text("🪙 Choose a recharge amount:", call.message.chat.id,
-                          call.message.message_id, reply_markup=kb)
+    kb.add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+    bot.edit_message_text("🪙 Select recharge amount:", call.message.chat.id, call.message.message_id, reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("pay_"))
-def show_wallet(call):
-    amt = call.data[4:]
-    bot.edit_message_text(
-        f"🪙 Send BTC or LTC for ${amt} to:\n\n*your-crypto-wallet-address-here*",
-        call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+def create_invoice(call):
+    uid = str(call.from_user.id)
+    amount = call.data.split("_")[1]
+    invoice_id = str(uuid.uuid4())
+
+    headers = {
+        "Authorization": f"Bearer {SELLY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "title": f"Recharge for user {uid}",
+        "value": amount,
+        "currency": "BTC",
+        "product_id": "pay",
+        "white_label": True,
+        "metadata": {
+            "telegram_id": uid,
+            "custom_id": invoice_id
+        }
+    }
+
+    response = requests.post("https://api.selly.io/v2/payments", json=payload, headers=headers)
+
+    if response.status_code == 200:
+        invoice = response.json()
+        payment_url = invoice.get("payment_url", "[NO URL]")
+        bot.edit_message_text(f"🪙 *Pay with BTC or LTC:*\n\n{payment_url}",
+                              call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    else:
+        bot.send_message(call.message.chat.id, "❌ Failed to generate invoice.")
 
 @bot.callback_query_handler(func=lambda call: call.data == "listings")
-def handle_listings(call):
+def show_listings(call):
     msg = "*Available Categories:*\n\n"
     for cat in CATEGORIES:
         msg += f"📁 {cat}\n"
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Back", callback_data="back_menu"))
-    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id,
-                          parse_mode="Markdown", reply_markup=kb)
+    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=kb)
 
 @bot.callback_query_handler(func=lambda call: call.data == "profile")
-def handle_profile(call):
+def show_profile(call):
     uid = str(call.from_user.id)
-    bal = data.get("users", {}).get(uid, {}).get("balance", 0)
-    msg = (
-        f"👤 *Your Bread Sauce Profile:*\n\n"
-        f"🆔 ID: `{uid}`\n"
-        f"💳 Balance: `${bal}`\n"
-        "🛍 Purchase history coming soon..."
-    )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Back", callback_data="back_menu"))
-    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id,
-                          parse_mode="Markdown", reply_markup=kb)
+    bal = data["users"].get(uid, {}).get("balance", 0)
+    msg = f"👤 *Profile*\n\n🆔 ID: `{uid}`\n💰 Balance: `${bal}`"
+    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, reply_markup=kb, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data == "rules")
 def show_rules(call):
-    msg = (
-        "📜 *Bread Sauce Policy:*\n"
+    rules = (
+        "📜 *Store Rules:*\n"
         "❌ No refunds.\n"
-        "🪪 Dead CCs aren't my responsibility.\n"
-        "🧠 If you don't know how to use the info, don't shop.\n"
-        "🔁 Only 1 CC replacement allowed (must prove failure on a low-end site).\n"
-        "🚫 No crybaby support."
+        "🪪 Dead CCs not our responsibility.\n"
+        "🧠 Know what you're doing before buying.\n"
+        "🔁 One replacement only (low-end site proof required)."
     )
-    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Back", callback_data="back_menu"))
-    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id,
-                          parse_mode="Markdown", reply_markup=kb)
+    kb = InlineKeyboardMarkup().add(InlineKeyboardButton("⬅️ Back", callback_data="back_to_menu"))
+    bot.edit_message_text(rules, call.message.chat.id, call.message.message_id, parse_mode="Markdown", reply_markup=kb)
 
-@bot.callback_query_handler(func=lambda call: call.data == "back_menu")
-def back_to_menu(call):
-    bot.edit_message_text("🏠 Returning to main menu...", call.message.chat.id,
-                          call.message.message_id, reply_markup=main_menu())
+@bot.callback_query_handler(func=lambda call: call.data == "back_to_menu")
+def return_home(call):
+    bot.edit_message_text("🏠 Main Menu:", call.message.chat.id, call.message.message_id, reply_markup=main_menu())
+
+# === ADMIN COMMANDS ===
 
 @bot.message_handler(commands=["add"])
-def admin_add(message):
-    if str(message.from_user.id) not in ADMIN_IDS:
+def add_product(message):
+    if not is_admin(message.from_user.id):
         return
     try:
-        parts = message.text.split(" ", 4)
-        _, name, category, price, content = parts
-        pid = str(uuid.uuid4())[:8]
+        parts = message.text.split(" ", 5)
+        _, name, price, category, preview, content = parts
+        pid = str(uuid.uuid4())
         data["products"][pid] = {
-            "name": name, "category": category, "price": float(price),
-            "content": content, "description": "GOOD FOR APPLE , BEST BUY & GOOGLE PAY"
+            "name": name,
+            "price": float(price),
+            "category": category,
+            "preview": preview,
+            "content": content
         }
         save_data()
-        bot.reply_to(message, f"✅ Added product {name} (${price}) to {category}.")
-    except:
-        bot.reply_to(message, "Usage: /add name category price content")
+        bot.reply_to(message, f"✅ Added product `{name}`.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Usage:\n/add NAME PRICE CATEGORY PREVIEW CONTENT\nError: {e}")
 
 @bot.message_handler(commands=["remove"])
-def admin_remove(message):
-    if str(message.from_user.id) not in ADMIN_IDS:
+def remove_product(message):
+    if not is_admin(message.from_user.id):
         return
     pid = message.text.split(" ", 1)[1]
     if pid in data["products"]:
         del data["products"][pid]
         save_data()
-        bot.reply_to(message, "✅ Product removed.")
+        bot.reply_to(message, f"✅ Removed product `{pid}`.")
     else:
-        bot.reply_to(message, "⚠️ Product ID not found.")
+        bot.reply_to(message, "❌ Product not found.")
 
 @bot.message_handler(commands=["credit"])
-def admin_credit(message):
-    if str(message.from_user.id) not in ADMIN_IDS:
+def credit_user(message):
+    if not is_admin(message.from_user.id):
         return
     try:
         _, username, amount = message.text.split()
-        for uid, user in data["users"].items():
-            if username.lower() in user.get("username", "").lower():
-                user["balance"] += float(amount)
+        for uid, user_data in data["users"].items():
+            if bot.get_chat(int(uid)).username == username:
+                user_data["balance"] += float(amount)
                 save_data()
-                bot.reply_to(message, f"✅ Credited {amount} to {username}.")
+                bot.reply_to(message, f"✅ Credited `${amount}` to @{username}.")
                 return
-        bot.reply_to(message, "⚠️ User not found.")
-    except:
-        bot.reply_to(message, "Usage: /credit username amount")
+        bot.reply_to(message, "❌ User not found.")
+    except Exception as e:
+        bot.reply_to(message, f"❌ Usage: /credit USERNAME AMOUNT\nError: {e}")
 
 bot.polling()
