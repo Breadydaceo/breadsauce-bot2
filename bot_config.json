@@ -1,16 +1,9 @@
 {
   "telegram_bot_token": "8032004385:AAEyYPljNDvah5WxWNHurmYTq9WXSwBg8FY",
-  "admin_ids": [
-    "7388528456"
-  ],
-  "categories": [
-    "Gift Cards",
-    "Fullz",
-    "BIN Numbers",
-    "CCs",
-    "Glass"
-  ],
+  "admin_ids": ["7388528456"],
+  "categories": ["Gift Cards", "Fullz", "BIN Numbers", "CCs", "Glass"],
+  "selly_api_key": "Nz9mvDhUj_u1ESbbj_acvHPdwiah6zxVr7YfA2pJ66eg16kB4ZQrTN7KT_8-e_4n",
   "database": {
-    "path": "store_data.json"
+    "path": "bot_db.json"
   }
 }
