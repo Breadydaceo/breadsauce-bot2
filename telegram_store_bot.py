@@ -157,7 +157,7 @@ def generate_invoice(call):
         "currency": "BTC",
         "value": amount,
         "white_label": True,
-        "return_url": https://breadydaceo.selly.store
+        "return_url": RETURN_URL
     }
 
     headers = {
