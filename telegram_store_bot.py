@@ -166,7 +166,7 @@ def generate_invoice(call):
     }
 
     headers = {
-        "Authorization": "Bearer ozJSANrGszds47fwWCo1nveeZHujSwGq_WCMs26EXZGP9m4zXssZfexZNd7TS549",
+        "Authorization": "Bearer Nz9mvDhUj_u1ESbbj_acvHPdWiah6zxVr7YfA2pJ66eg16kB4ZQrTN7KT_8-e_4n",
         "Content-Type": "application/json"
     }
 
